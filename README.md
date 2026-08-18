@@ -22,7 +22,8 @@ It captures live packets, extracts key headers (Ethernet, IP, TCP/UDP/ICMP), and
 
 ## 📦 Installation
 
-bash
+# bash
+
 # Clone the repository
 git clone https://github.com/yourusername/pyshark.git
 cd pyshark
