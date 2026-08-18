@@ -1,5 +1,10 @@
 # CODSOFT_TASKSNO_1
 
+# 🦈 PyShark – Network Packet Analyzer
+
+**PyShark** is a production‑ready, command‑line network packet analyzer built with Python and Scapy.  
+It captures live packets, extracts key headers (Ethernet, IP, TCP/UDP/ICMP), and displays them in a clean, colour‑coded table.
+
 ## ✨ Features
 
 - **Continuous monitoring** – runs until you press `Ctrl+C` (or capture a fixed number with `-c`).
@@ -17,7 +22,7 @@
 
 ## 📦 Installation
 
-```bash
+bash
 # Clone the repository
 git clone https://github.com/yourusername/pyshark.git
 cd pyshark
