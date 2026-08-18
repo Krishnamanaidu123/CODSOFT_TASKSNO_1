@@ -22,7 +22,7 @@ It captures live packets, extracts key headers (Ethernet, IP, TCP/UDP/ICMP), and
 
 ## 📦 Installation
 
-  bash
+    bash
 
     # Clone the repository
     git clone https://github.com/yourusername/pyshark.git
@@ -35,18 +35,19 @@ It captures live packets, extracts key headers (Ethernet, IP, TCP/UDP/ICMP), and
     chmod +x pyshark
 
     # (Optional) Install globally
-sudo cp pyshark /usr/local/bin/
-Note: On Windows, install Npcap in WinPcap‑compatible mode.
+    sudo cp pyshark /usr/local/bin/
+    Note: On Windows, install Npcap in WinPcap‑compatible mode.
 
 🚀 Usage
 Run with root/administrator privileges:
 
-bash
-sudo ./pyshark
-Or, if installed globally:
+    bash
+    sudo ./pyshark
+    Or, if installed globally:
 
-bash
-sudo pyshark
+    bash
+    sudo pyshark
+
 Command‑line options
 Option	Description
 -i IFACE	Network interface (e.g., eth0, wlan0). Default: Scapy's default.
@@ -54,28 +55,33 @@ Option	Description
 -f FILTER	BPF filter (e.g., "tcp port 443").
 -o FILE.pcap	Save captured packets to a PCAP file.
 -l	List available network interfaces.
+
 Examples
-bash
-# Capture continuously (default) – press Ctrl+C to stop
-sudo pyshark
+       
+    bash
+    # Capture continuously (default) – press Ctrl+C to stop
+    sudo pyshark
 
-# Capture 10 packets on the default interface
-sudo pyshark -c 10
+    # Capture 10 packets on the default interface
+    sudo pyshark -c 10
 
-# Capture HTTPS traffic on wlan0 and save to file
-sudo pyshark -i wlan0 -f "tcp port 443" -o https.pcap
+    # Capture HTTPS traffic on wlan0 and save to file
+    sudo pyshark -i wlan0 -f "tcp port 443" -o https.pcap
 
-# Capture all ICMP (ping) packets indefinitely
-sudo pyshark -f "icmp"
+    # Capture all ICMP (ping) packets indefinitely
+    sudo pyshark -f "icmp"
 
 # List all interfaces
 sudo pyshark -l
 🧪 Testing with Different Traffic
+
 Terminal 1 – start the analyzer:
-sudo pyshark -i eth0 -f "icmp"
+      
+     sudo pyshark -i eth0 -f "icmp"
 
 Terminal 2 – generate traffic:
-ping 8.8.8.8
+
+     ping 8.8.8.8
 
 Watch ICMP packets appear live in Terminal 1. Press Ctrl+C to stop.
 
@@ -99,33 +105,35 @@ You can use nano, vim, or cat to write each file.
 
 Make the script executable:
 
-bash
-chmod +x pyshark
-Initialise Git and commit:
+    bash
+    chmod +x pyshark
+    Initialise Git and commit:
 
-bash
-git init
-git add .
-git commit -m "Initial commit: PyShark v2.2"
+    bash
+    git init
+    git add .
+    git commit -m "Initial commit: PyShark v2.2"
+
 Go to GitHub and create a new repository (name it pyshark).
 Do not initialise it with README, .gitignore, or license – we already have them.
 
 Link your local repo and push:
 
-bash
-git remote add origin https://github.com/Krishnamanaidu2526/pyshark.git
-git branch -M main
-git push -u origin main
-Replace yourusername with your actual GitHub username.
+    bash
+      git remote add origin https://github.com/Krishnamanaidu2526/pyshark.git
+      branch -M main
+      git push -u origin main
+      Replace yourusername with your actual GitHub username.
 
 ✅ Verifying the Tool
 After cloning or installing, run:
 
-bash
-sudo ./pyshark
+    bash
+      sudo pyshark
+      
 It will start capturing continuously until you press Ctrl+C.
 You can test with different traffic as described in the README.
 
-Happy sniffing! 🦈
+# Happy sniffing! 🦈
 
 
