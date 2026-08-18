@@ -1,0 +1,235 @@
+cat /usr/local/bin/pyshark                              
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+PyShark - Network Packet Analyzer v2.2
+Continuous packet capture using a while loop.
+"""
+
+import sys
+import os
+import argparse
+import signal
+import logging
+import time
+from datetime import datetime
+from scapy.all import sniff, Ether, IP, TCP, UDP, ICMP, Raw, conf, get_if_list
+from scapy.utils import wrpcap
+
+# Suppress Scapy warnings
+logging.getLogger("scapy").setLevel(logging.ERROR)
+conf.verb = 0
+
+# ANSI colors
+COLOR_RESET = "\033[0m"
+COLOR_BOLD = "\033[1m"
+COLOR_RED = "\033[91m"
+COLOR_GREEN = "\033[92m"
+COLOR_YELLOW = "\033[93m"
+COLOR_CYAN = "\033[96m"
+COLOR_WHITE = "\033[97m"
+COLOR_MAGENTA = "\033[95m"
+
+PROTO_MAP = {1: "ICMP", 6: "TCP", 17: "UDP", 2: "IGMP", 4: "IPv4", 41: "IPv6", 89: "OSPF", 132: "SCTP"}
+
+captured_packets = []
+packet_counter = 0
+running = True  # global flag for the loop
+
+
+def print_banner():
+    banner = f"""
+{COLOR_CYAN}
+              _   _   _
+             / \\_/ \\_/ \\    
+            /|         |\\   
+           | |   _ _   | |  
+           | |   ^_^   | | 
+           | |         | |  
+           | | Scaning | |  
+            \\|  _   _  |/   
+             \\_/ \\_/ \\_/                 
+{COLOR_RESET}
+{COLOR_BOLD}{COLOR_YELLOW}            P Y S H A R K{COLOR_RESET}
+{COLOR_GREEN}      Network Packet Analyzer v2.2{COLOR_RESET}
+{COLOR_MAGENTA}        by Python Network Expert{COLOR_RESET}
+"""
+    print(banner)
+
+
+def format_timestamp(epoch):
+    dt = datetime.fromtimestamp(epoch)
+    return dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+
+def hexdump_short(data, max_len=20):
+    if not data:
+        return ""
+    hex_str = data.hex()
+    if len(hex_str) > max_len * 2:
+        hex_str = hex_str[:max_len * 2] + "..."
+    return " ".join(hex_str[i:i+2] for i in range(0, len(hex_str), 2))
+
+
+def packet_callback(packet):
+    global packet_counter
+    packet_counter += 1
+    
+    # Ethernet
+    eth = packet.getlayer(Ether)
+    src_mac = eth.src if eth else "N/A"
+    dst_mac = eth.dst if eth else "N/A"
+
+    # IP
+    ip = packet.getlayer(IP)
+    if ip:
+        src_ip = ip.src
+        dst_ip = ip.dst
+        proto_name = PROTO_MAP.get(ip.proto, f"UNKNOWN({ip.proto})")
+    else:
+        src_ip = dst_ip = proto_name = "N/A"
+
+    # Transport
+    src_port = dst_port = "N/A"
+    extra = ""
+    tcp = packet.getlayer(TCP)
+    udp = packet.getlayer(UDP)
+    icmp = packet.getlayer(ICMP)
+    if tcp:
+        src_port, dst_port = tcp.sport, tcp.dport
+        extra = f"SEQ={tcp.seq}"
+    elif udp:
+        src_port, dst_port = udp.sport, udp.dport
+        extra = f"LEN={udp.len}"
+    elif icmp:
+        src_port = dst_port = "ICMP"
+        extra = f"TYPE={icmp.type} CODE={icmp.code}"
+
+    # Payload
+    raw = packet.getlayer(Raw)
+    payload_hex = hexdump_short(raw.load) if raw else ""
+
+    # Timestamp
+    ts = format_timestamp(packet.time)
+
+    # Print row
+    row = (
+        f"{COLOR_CYAN}{packet_counter:4d}{COLOR_RESET}"
+        f"  {ts[:19]}"
+        f"  {src_mac:17}"
+        f"  {dst_mac:17}"
+        f"  {src_ip:15}"
+        f"  {dst_ip:15}"
+        f"  {proto_name:8}"
+        f"  {str(src_port):6}->{str(dst_port):6}"
+        f"  {extra:20}"
+        f"  {payload_hex:30}"
+    )
+    print(row)
+
+    captured_packets.append(packet)
+
+
+def list_interfaces():
+    print(f"{COLOR_YELLOW}Available interfaces:{COLOR_RESET}")
+    interfaces = get_if_list()
+    for i, iface in enumerate(interfaces, 1):
+        print(f"  {i}. {iface}")
+    print()
+
+
+def main():
+    global running, packet_counter
+    
+    parser = argparse.ArgumentParser(description="PyShark - Real‑time Packet Analyzer")
+    parser.add_argument("-i", "--interface", help="Network interface (e.g., eth0)")
+    parser.add_argument("-c", "--count", type=int, default=0, help="Number of packets (0 = unlimited)")
+    parser.add_argument("-f", "--filter", default="", help="BPF filter")
+    parser.add_argument("-o", "--output", help="Save to .pcap file")
+    parser.add_argument("-l", "--list", action="store_true", help="List available interfaces")
+    args = parser.parse_args()
+
+    if args.list:
+        list_interfaces()
+        sys.exit(0)
+
+    if os.name == "posix" and os.geteuid() != 0:
+        print(f"{COLOR_RED}ERROR: Run with sudo or as root.{COLOR_RESET}")
+        sys.exit(1)
+
+    print_banner()
+
+    # If no interface specified, show available ones
+    iface = args.interface
+    if not iface:
+        list_interfaces()
+        print(f"{COLOR_YELLOW}No interface specified. Using default interface...{COLOR_RESET}\n")
+
+    count_limit = args.count if args.count > 0 else None
+    bpf = args.filter if args.filter else None
+
+    print(f"{COLOR_WHITE}Interface: {COLOR_CYAN}{iface if iface else 'default'}{COLOR_RESET}")
+    print(f"{COLOR_WHITE}Filter:    {COLOR_CYAN}{bpf if bpf else 'none'}{COLOR_RESET}")
+    print(f"{COLOR_WHITE}Count:     {COLOR_CYAN}{count_limit if count_limit else 'unlimited (Ctrl+C to stop)'}{COLOR_RESET}")
+    print(COLOR_MAGENTA + "Starting capture... Press Ctrl+C to stop.\n" + COLOR_RESET)
+
+    # Print table header
+    header = (
+        f"{COLOR_BOLD}{'#':4}  {'Timestamp':19}  {'SRC MAC':17}  {'DST MAC':17}  "
+        f"{'SRC IP':15}  {'DST IP':15}  {'PROTO':8}  {'PORTS':13}  {'EXTRA':20}  {'PAYLOAD':30}{COLOR_RESET}"
+    )
+    print(header)
+    print("-" * 160)
+
+    def signal_handler(sig, frame):
+        global running
+        running = False
+        print(f"\n{COLOR_YELLOW}Capture interrupted by user. Total packets: {packet_counter}{COLOR_RESET}")
+        if args.output and captured_packets:
+            try:
+                wrpcap(args.output, captured_packets)
+                print(f"{COLOR_GREEN}Saved to {args.output}{COLOR_RESET}")
+            except Exception as e:
+                print(f"{COLOR_RED}Failed to save: {e}{COLOR_RESET}")
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # --- Continuous capture loop ---
+    try:
+        while running:
+            # Capture one packet at a time with a short timeout
+            sniff(
+                iface=iface,
+                filter=bpf,
+                prn=packet_callback,
+                count=1,          # capture one packet per iteration
+                store=False,
+                timeout=2         # wait up to 2 seconds for a packet
+            )
+            # If count_limit is set and reached, break
+            if count_limit and packet_counter >= count_limit:
+                break
+            # A tiny sleep to avoid busy-loop if no packets
+            time.sleep(0.01)
+    except KeyboardInterrupt:
+        signal_handler(None, None)
+    except Exception as e:
+        print(f"{COLOR_RED}Error: {e}{COLOR_RESET}")
+        # Try to continue if possible
+        pass
+
+    if count_limit and packet_counter >= count_limit:
+        print(f"\n{COLOR_GREEN}Capture completed. Total packets: {packet_counter}{COLOR_RESET}")
+
+    if args.output and captured_packets:
+        try:
+            wrpcap(args.output, captured_packets)
+            print(f"{COLOR_GREEN}Saved to {args.output}{COLOR_RESET}")
+        except Exception as e:
+            print(f"{COLOR_RED}Failed to save: {e}{COLOR_RESET}")
+
+
+if __name__ == "__main__":
+    main()
