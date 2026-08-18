@@ -22,19 +22,19 @@ It captures live packets, extracts key headers (Ethernet, IP, TCP/UDP/ICMP), and
 
 ## 📦 Installation
 
-# bash
+  bash
 
-# Clone the repository
-git clone https://github.com/yourusername/pyshark.git
-cd pyshark
+    # Clone the repository
+    git clone https://github.com/yourusername/pyshark.git
+    cd pyshark
 
-# Install Python dependencies
-pip install -r requirements.txt
+    # Install Python dependencies
+    pip install -r requirements.txt
 
-# Make the script executable
-chmod +x pyshark
+    # Make the script executable
+    chmod +x pyshark
 
-# (Optional) Install globally
+    # (Optional) Install globally
 sudo cp pyshark /usr/local/bin/
 Note: On Windows, install Npcap in WinPcap‑compatible mode.
 
