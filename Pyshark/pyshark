@@ -3,7 +3,7 @@
 
 """
 PyShark - Network Packet Analyzer v2.2
-Continuous packet capture using a while loop.
+Enhanced help and continuous capture.
 """
 
 import sys
@@ -34,7 +34,7 @@ PROTO_MAP = {1: "ICMP", 6: "TCP", 17: "UDP", 2: "IGMP", 4: "IPv4", 41: "IPv6", 8
 
 captured_packets = []
 packet_counter = 0
-running = True  # global flag for the loop
+running = True
 
 
 def print_banner():
@@ -74,13 +74,11 @@ def hexdump_short(data, max_len=20):
 def packet_callback(packet):
     global packet_counter
     packet_counter += 1
-    
-    # Ethernet
+
     eth = packet.getlayer(Ether)
     src_mac = eth.src if eth else "N/A"
     dst_mac = eth.dst if eth else "N/A"
 
-    # IP
     ip = packet.getlayer(IP)
     if ip:
         src_ip = ip.src
@@ -89,7 +87,6 @@ def packet_callback(packet):
     else:
         src_ip = dst_ip = proto_name = "N/A"
 
-    # Transport
     src_port = dst_port = "N/A"
     extra = ""
     tcp = packet.getlayer(TCP)
@@ -105,14 +102,11 @@ def packet_callback(packet):
         src_port = dst_port = "ICMP"
         extra = f"TYPE={icmp.type} CODE={icmp.code}"
 
-    # Payload
     raw = packet.getlayer(Raw)
     payload_hex = hexdump_short(raw.load) if raw else ""
 
-    # Timestamp
     ts = format_timestamp(packet.time)
 
-    # Print row
     row = (
         f"{COLOR_CYAN}{packet_counter:4d}{COLOR_RESET}"
         f"  {ts[:19]}"
@@ -140,13 +134,44 @@ def list_interfaces():
 
 def main():
     global running, packet_counter
-    
-    parser = argparse.ArgumentParser(description="PyShark - Real‑time Packet Analyzer")
-    parser.add_argument("-i", "--interface", help="Network interface (e.g., eth0)")
-    parser.add_argument("-c", "--count", type=int, default=0, help="Number of packets (0 = unlimited)")
-    parser.add_argument("-f", "--filter", default="", help="BPF filter")
-    parser.add_argument("-o", "--output", help="Save to .pcap file")
-    parser.add_argument("-l", "--list", action="store_true", help="List available interfaces")
+
+    parser = argparse.ArgumentParser(
+        description="PyShark - Real-time Network Packet Analyzer v2.2\n\n"
+                    "A production‑ready CLI tool that captures live network packets, extracts key "
+                    "headers (Ethernet, IP, TCP/UDP/ICMP), and displays them in a clean, colour‑"
+                    "coded table. Supports BPF filters, interface selection, packet count limits, "
+                    "and PCAP export. Runs continuously until interrupted (Ctrl+C).",
+        epilog="Examples:\n"
+               "  sudo pyshark -i eth0 -f \"icmp\"          # Capture only ICMP (ping) packets on eth0\n"
+               "  sudo pyshark -c 10 -o capture.pcap       # Capture 10 packets and save to capture.pcap\n"
+               "  sudo pyshark -f \"tcp port 80 or 443\"     # Capture HTTP and HTTPS traffic\n"
+               "  sudo pyshark -l                          # Show all interfaces\n\n"
+               "Press Ctrl+C at any time to stop the capture.",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "-i", "--interface",
+        help="Network interface to sniff on (e.g., eth0, wlan0). "
+             "If not specified, Scapy selects the default."
+    )
+    parser.add_argument(
+        "-c", "--count", type=int, default=0,
+        help="Number of packets to capture. Use 0 (default) for "
+             "unlimited capture (stop with Ctrl+C)."
+    )
+    parser.add_argument(
+        "-f", "--filter", default="",
+        help="BPF (Berkeley Packet Filter) expression to filter captured traffic. "
+             "Examples: \"tcp port 80\", \"icmp\", \"host 192.168.1.1\"."
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Save captured packets to a .pcap file. Useful for later analysis in Wireshark."
+    )
+    parser.add_argument(
+        "-l", "--list", action="store_true",
+        help="List available network interfaces and exit."
+    )
     args = parser.parse_args()
 
     if args.list:
@@ -159,7 +184,6 @@ def main():
 
     print_banner()
 
-    # If no interface specified, show available ones
     iface = args.interface
     if not iface:
         list_interfaces()
@@ -173,7 +197,6 @@ def main():
     print(f"{COLOR_WHITE}Count:     {COLOR_CYAN}{count_limit if count_limit else 'unlimited (Ctrl+C to stop)'}{COLOR_RESET}")
     print(COLOR_MAGENTA + "Starting capture... Press Ctrl+C to stop.\n" + COLOR_RESET)
 
-    # Print table header
     header = (
         f"{COLOR_BOLD}{'#':4}  {'Timestamp':19}  {'SRC MAC':17}  {'DST MAC':17}  "
         f"{'SRC IP':15}  {'DST IP':15}  {'PROTO':8}  {'PORTS':13}  {'EXTRA':20}  {'PAYLOAD':30}{COLOR_RESET}"
@@ -192,32 +215,26 @@ def main():
             except Exception as e:
                 print(f"{COLOR_RED}Failed to save: {e}{COLOR_RESET}")
         sys.exit(0)
-    
+
     signal.signal(signal.SIGINT, signal_handler)
 
-    # --- Continuous capture loop ---
     try:
         while running:
-            # Capture one packet at a time with a short timeout
             sniff(
                 iface=iface,
                 filter=bpf,
                 prn=packet_callback,
-                count=1,          # capture one packet per iteration
+                count=1,
                 store=False,
-                timeout=2         # wait up to 2 seconds for a packet
+                timeout=2
             )
-            # If count_limit is set and reached, break
             if count_limit and packet_counter >= count_limit:
                 break
-            # A tiny sleep to avoid busy-loop if no packets
             time.sleep(0.01)
     except KeyboardInterrupt:
         signal_handler(None, None)
     except Exception as e:
         print(f"{COLOR_RED}Error: {e}{COLOR_RESET}")
-        # Try to continue if possible
-        pass
 
     if count_limit and packet_counter >= count_limit:
         print(f"\n{COLOR_GREEN}Capture completed. Total packets: {packet_counter}{COLOR_RESET}")
