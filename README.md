@@ -45,6 +45,9 @@ Run with root/administrator privileges:
     sudo ./pyshark
     Or, if installed globally:
 
+    Do This 
+    sudo cp pyshark /usr/local/bin/  For sudo pyshark
+
     bash
     sudo pyshark
 
